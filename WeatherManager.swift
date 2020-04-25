@@ -9,7 +9,8 @@
 import Foundation
 
 protocol WeatherManagerDelegate {
-    func didUpdateWeather(weatherData: WeatherModel)
+    func didUpdateWeather(_ weatherManager: WeatherManager, weatherData: WeatherModel)
+    func didFailWithError(error: Error)
 }
 
 struct WeatherManager {
@@ -21,23 +22,22 @@ struct WeatherManager {
     func fetchWeather(cityName: String) {
         let urlString = "\(url)&q=\(cityName)"
 
-        performRequest(urlString: urlString)
+        performRequest(with: urlString)
     }
 
-    func performRequest(urlString: String) {
+    func performRequest(with urlString: String) {
         if let url = URL(string: urlString) {
             let session = URLSession(configuration: .default)
 
             let task = session.dataTask(with: url) { (data, response, error) in
                 if error != nil {
-                    print(error!)
+                    self.delegate?.didFailWithError(error: error!)
                     return
                 }
 
                 if let safeData = data {
-                    let dataString = String(data: safeData, encoding: .utf8)
-                    if let weather = self.parseJson(weatherData: safeData) {
-                        self.delegate?.didUpdateWeather(weatherData: weather)
+                    if let weather = self.parseJson(safeData) {
+                        self.delegate?.didUpdateWeather(self, weatherData: weather)
                     }
                 }
             }
@@ -45,7 +45,7 @@ struct WeatherManager {
         }
     }
 
-    func parseJson(weatherData: Data) -> WeatherModel? {
+    func parseJson(_ weatherData: Data) -> WeatherModel? {
         let decoder = JSONDecoder()
 
         do {
@@ -56,16 +56,12 @@ struct WeatherManager {
             let name = decodeData.name
 
             let weather = WeatherModel(conditionId: id, cityName: name, temperature: temp)
+
             return weather
-
-
         } catch {
-            print(error)
+            delegate?.didFailWithError(error: error)
         }
 
         return nil
     }
-
-
-
 }
