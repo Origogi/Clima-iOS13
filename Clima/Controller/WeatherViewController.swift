@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import CoreLocation
 
 class WeatherViewController: UIViewController {
     @IBOutlet var conditionImageView: UIImageView!
@@ -15,13 +16,23 @@ class WeatherViewController: UIViewController {
     @IBOutlet var searchTextField: UITextField!
 
     var weatherManager = WeatherManager()
+    let locationManager = CLLocationManager()
+
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view.
+
+        locationManager.delegate = self
+
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.requestLocation()
+
 
         searchTextField.delegate = self
         weatherManager.delegate = self
+    }
+    @IBAction func locationPressed(_ sender: Any) {
+        locationManager.requestLocation()
     }
 
     @IBAction func searchPressed(_ sender: UIButton) {
@@ -63,8 +74,10 @@ extension WeatherViewController: WeatherManagerDelegate {
     func didUpdateWeather(_ weatherManager: WeatherManager, weatherData: WeatherModel) {
 
         DispatchQueue.main.async {
+            print(weatherData)
             self.temperatureLabel.text = weatherData.temperatureString
             self.conditionImageView.image = UIImage(systemName: weatherData.conditionName)
+            self.cityLabel.text = weatherData.cityName
 
         }
     }
@@ -73,3 +86,27 @@ extension WeatherViewController: WeatherManagerDelegate {
         print(error)
     }
 }
+//MARK: - CLLocationManagerDelegate
+
+extension WeatherViewController: CLLocationManagerDelegate {
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print(error)
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        print("Got location data")
+
+        if let location = locations.last {
+            locationManager.stopUpdatingLocation()
+            let lat = location.coordinate.latitude
+            let lon = location.coordinate.longitude
+
+            print(lat)
+            print(lon)
+
+            weatherManager.fetchWeather(latitude: lat, longtitude: lon)
+        }
+    }
+}
+
